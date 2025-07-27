@@ -1,0 +1,11 @@
+D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XbozPcAppFT.exe.config
+D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XbozPcAppFT.exe
+D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XbozPcAppFT.pdb
+D:\word\XbozPcAppFT\XbozPcAppFT\obj\Debug\XbozPcAppFT.csproj.AssemblyReference.cache
+D:\word\XbozPcAppFT\XbozPcAppFT\obj\Debug\XbozPcAppFT.csproj.CoreCompileInputs.cache
+D:\word\XbozPcAppFT\XbozPcAppFT\obj\Debug\XbozPcAppFT.exe
+D:\word\XbozPcAppFT\XbozPcAppFT\obj\Debug\XbozPcAppFT.pdb
+D:\word\XbozPcAppFT\XbozPcAppFT\obj\Debug\XbozPcAppFT.exe.config
+D:\word\XbozPcAppFT\XbozPcAppFT\obj\Debug\XbozPcAppFT.XboxLiveApiSvc.resources
+D:\word\XbozPcAppFT\XbozPcAppFT\obj\Debug\XbozPcAppFT.csproj.GenerateResource.cache
+D:\word\XbozPcAppFT\XbozPcAppFT\obj\Debug\XbozPcAppFT.ProjectInstaller.resources

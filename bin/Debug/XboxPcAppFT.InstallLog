@@ -1,0 +1,166 @@
+﻿Installing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Installing service XboxLiveApiSvc...
+Creating EventLog source XboxLiveApiSvc in log Application...
+Rolling back assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Restoring event log to previous state for source XboxLiveApiSvc.
+Installing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Installing service XboxLiveApiSvc...
+Service XboxLiveApiSvc has been successfully installed.
+Creating EventLog source XboxLiveApiSvc in log Application...
+Committing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Uninstalling assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Removing EventLog source XboxLiveApiSvc.
+Service XboxLiveApiSvc is being removed from the system...
+Service XboxLiveApiSvc was successfully removed from the system.
+Attempt to stop service XboxLiveApiSvc.
+Installing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Installing service XboxLiveApiSvc...
+Service XboxLiveApiSvc has been successfully installed.
+Creating EventLog source XboxLiveApiSvc in log Application...
+Committing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Uninstalling assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Removing EventLog source XboxLiveApiSvc.
+Service XboxLiveApiSvc is being removed from the system...
+Service XboxLiveApiSvc was successfully removed from the system.
+Attempt to stop service XboxLiveApiSvc.
+Uninstalling assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Removing EventLog source XboxLiveApiSvc.
+Warning: The source XboxLiveApiSvc is not registered on the local machine.
+Service XboxLiveApiSvc is being removed from the system...
+An exception occurred during the uninstallation of the System.ServiceProcess.ServiceInstaller installer.
+System.ComponentModel.Win32Exception: The specified service does not exist as an installed service
+An exception occurred while uninstalling. This exception will be ignored and the uninstall will continue. However, the application might not be fully uninstalled after the uninstall is complete.
+Installing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Installing service XboxLiveApiSvc...
+Service XboxLiveApiSvc has been successfully installed.
+Creating EventLog source XboxLiveApiSvc in log Application...
+Committing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Uninstalling assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Removing EventLog source XboxLiveApiSvc.
+Service XboxLiveApiSvc is being removed from the system...
+Service XboxLiveApiSvc was successfully removed from the system.
+Attempt to stop service XboxLiveApiSvc.
+Installing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Installing service XboxLiveApiSvc...
+Service XboxLiveApiSvc has been successfully installed.
+Creating EventLog source XboxLiveApiSvc in log Application...
+Committing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Uninstalling assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Removing EventLog source XboxLiveApiSvc.
+Service XboxLiveApiSvc is being removed from the system...
+Service XboxLiveApiSvc was successfully removed from the system.
+Installing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Installing service XboxLiveApiSvc...
+Service XboxLiveApiSvc has been successfully installed.
+Creating EventLog source XboxLiveApiSvc in log Application...
+Committing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Installing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Installing service XboxLiveApiSvc...
+Creating EventLog source XboxLiveApiSvc in log Application...
+Rolling back assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Restoring event log to previous state for source XboxLiveApiSvc.
+Uninstalling assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Removing EventLog source XboxLiveApiSvc.
+Service XboxLiveApiSvc is being removed from the system...
+Service XboxLiveApiSvc was successfully removed from the system.
+Installing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Installing service XboxLiveApiSvc...
+Service XboxLiveApiSvc has been successfully installed.
+Creating EventLog source XboxLiveApiSvc in log Application...
+Committing assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Uninstalling assembly 'D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe'.
+Affected parameters are:
+   logtoconsole = 
+   assemblypath = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.exe
+   logfile = D:\word\XbozPcAppFT\XbozPcAppFT\bin\Debug\XboxPcAppFT.InstallLog
+Removing EventLog source XboxLiveApiSvc.
+Service XboxLiveApiSvc is being removed from the system...
+Service XboxLiveApiSvc was successfully removed from the system.
