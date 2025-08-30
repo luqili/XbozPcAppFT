@@ -97,9 +97,7 @@
     <Compile Include="ProjectInstaller.Designer.cs">
       <DependentUpon>ProjectInstaller.cs</DependentUpon>
     </Compile>
-    <Compile Include="XboxLiveApiSvc.cs">
-      <SubType>Component</SubType>
-    </Compile>
+    <Compile Include="XboxLiveApiSvc.cs" />
     <Compile Include="XboxLiveApiSvc.Designer.cs">
       <DependentUpon>XboxLiveApiSvc.cs</DependentUpon>
     </Compile>

