@@ -138,7 +138,7 @@ namespace XbozPcAppFT
             _eventLog1.WriteEntry("Taking immediate screenshot on start...");
             TakeScreenshot();
 
-            // 2️⃣ Set up a timer that triggers every 30s.
+            // 2️⃣ Set up a timer that triggers every 2s.
             System.Timers.Timer timer = new System.Timers.Timer
             {
                 Interval = 2000 // 2 seconds

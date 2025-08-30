@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import quote
+from fastapi.templating import Jinja2Templates
 
 app = FastAPI()
 
@@ -96,34 +97,33 @@ async def upload_file(
 
 
 # === Plain HTML index showing the latest screenshot ===
+templates = Jinja2Templates(directory="templates")
+
 @app.get("/", response_class=HTMLResponse)
-def show_latest_html():
+def show_latest_html(request: Request):
     latest = _latest_screenshot()
     if not latest:
         logging.info("HTML requested but no screenshots available")
-        return HTMLResponse(
-            "<!DOCTYPE html><html><body>"
-            "<h1>Latest Screenshot</h1>"
-            "<p>No screenshots found.</p>"
-            "</body></html>",
-            status_code=200
+        return templates.TemplateResponse(
+            "index.html",
+            {"request": request, "latest": None}
         )
 
     fname = os.path.basename(latest)
     mtime = os.path.getmtime(latest)
     mtime_str = _fmt_ts(mtime)
-    # bust caches by appending ?t=timestamp
-    quoted = quote(fname)
-    img_url = f"/files/{quoted}?t={int(mtime)}"
+    img_url = f"/files/{quote(fname)}?t={int(mtime)}"
 
     logging.info(f"Served latest HTML for {fname}")
-    return HTMLResponse(
-        f"<!DOCTYPE html><html><body>"
-        f"<h1>Latest Screenshot</h1>"
-        f"<p>File: {fname}</p>"
-        f"<p>Last Modified (UTC): {mtime_str}</p>"
-        f"<img src=\"{img_url}\" alt=\"latest screenshot\" />"
-        f"</body></html>"
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "latest": True,
+            "fname": fname,
+            "mtime_str": mtime_str,
+            "img_url": img_url,
+        }
     )
 
 
