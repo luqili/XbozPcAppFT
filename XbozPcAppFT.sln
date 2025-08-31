@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XboxPcAppFT", "XboxPcAppFT.csproj", "{108C71C2-8B74-5C6C-4A0D-7B1DD3D9877D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{108C71C2-8B74-5C6C-4A0D-7B1DD3D9877D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{108C71C2-8B74-5C6C-4A0D-7B1DD3D9877D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{108C71C2-8B74-5C6C-4A0D-7B1DD3D9877D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{108C71C2-8B74-5C6C-4A0D-7B1DD3D9877D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C0D7C198-3842-4F74-A9D6-8C5F0B789240}
+	EndGlobalSection
+EndGlobal

