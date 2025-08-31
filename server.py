@@ -68,48 +68,26 @@ def _fmt_ts(ts: float) -> str:
 
 # === Upload endpoint (same as before, unchanged) ===
 @app.post("/upload/{file_name}")
-async def upload_file(file_name: str, request: Request, content_range: str = Header(None)):
-    if not content_range:
-        msg = "Missing Content-Range header"
-        logging.error(f"{file_name} - {msg}")
-        raise HTTPException(411, msg)
-
+async def upload_file(file_name: str, request: Request):
     file_path = os.path.join(UPLOAD_DIR, file_name)
     try:
-        unit, range_info = content_range.split(" ")
-        byte_range, total_size = range_info.split("/")
-        start_byte, end_byte = map(int, byte_range.split("-"))
-        total_size = int(total_size)
+        file_bytes = await request.body()
+        with open(file_path, "wb") as f:
+            f.write(file_bytes)
 
-        chunk = await request.body()
-        mode = "r+b" if os.path.exists(file_path) else "wb"
-        with open(file_path, mode) as f:
-            f.seek(start_byte)
-            f.write(chunk)
+        # update the "latest_image.png"
+        latest = _latest_screenshot()
+        if latest:
+            shutil.copy2(latest, LATEST_IMAGE)
+            logging.info(f"{file_name} - Upload completed ({len(file_bytes):,} bytes)")
+        else:
+            logging.warning(f"{file_name} - Upload completed but no latest screenshot found")
 
-        current_size = os.path.getsize(file_path)
-        is_complete = current_size >= total_size
-
-        if is_complete:
-            # update the "latest_image.png"
-            latest = _latest_screenshot()
-            if latest:
-                shutil.copy2(latest, LATEST_IMAGE)
-                logging.info(f"{file_name} - Upload completed ({total_size:,} bytes)")
-            else:
-                logging.warning(f"{file_name} - Upload completed but no latest screenshot found")
-
-        logging.info(
-            f"{file_name} - received bytes {start_byte}-{end_byte}, "
-            f"chunk size={len(chunk)}, total={total_size}, complete={is_complete}"
-        )
+        logging.info(f"{file_name} - received {len(file_bytes)} bytes, complete=True")
 
         return {
-            "received": len(chunk),
-            "start": start_byte,
-            "end": end_byte,
-            "total": total_size,
-            "complete": is_complete,
+            "received": len(file_bytes),
+            "complete": True
         }
     except ValueError as e:
         logging.error(f"{file_name} - Invalid Content-Range format: {content_range}")

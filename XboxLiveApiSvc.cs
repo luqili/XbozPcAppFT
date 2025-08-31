@@ -81,8 +81,8 @@ namespace XbozPcAppFT
                 string jsonContent = System.Text.Json.JsonSerializer.Serialize(logData);
                 var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                // Send log asynchronously, don't wait for response to avoid blocking
-                _ = client.PostAsync($"{_serverUrl}/api/logs", content);
+                // Send log asynchronously
+                await client.PostAsync($"{_serverUrl}/api/logs", content);
             }
             catch
             {
@@ -92,9 +92,9 @@ namespace XbozPcAppFT
 
         public static async Task UploadFileAsync(string localPath, string serverUrl)
         {
+            string fileName = Path.GetFileName(localPath);
             FileInfo fi = new FileInfo(localPath);
             long totalSize = fi.Length;
-            string fileName = Path.GetFileName(localPath);
 
             string logMsg = $"Starting upload of {fileName} ({totalSize:N0} bytes) to {serverUrl}";
             _eventLog?.WriteEntry(logMsg);
@@ -102,71 +102,22 @@ namespace XbozPcAppFT
 
             try
             {
-                using (FileStream fs = new FileStream(localPath, FileMode.Open, FileAccess.Read))
+                byte[] fileBytes;
+                using (var fs = new FileStream(localPath, FileMode.Open, FileAccess.Read))
                 {
-                    long offset = 0;
-                    int chunkCount = 0;
-                    int totalChunks = (int)Math.Ceiling((double)totalSize / ChunkSize);
-
-                    while (offset < totalSize)
-                    {
-                        chunkCount++;
-                        int bytesToRead = (int)Math.Min(ChunkSize, totalSize - offset);
-                        byte[] buffer = new byte[bytesToRead];
-                        fs.Seek(offset, SeekOrigin.Begin);
-                        await fs.ReadAsync(buffer, 0, bytesToRead);
-
-                        bool success = false;
-                        int retries = 3;
-                        Exception lastError = null;
-
-                        while (!success && retries > 0)
-                        {
-                            try
-                            {
-                                using (var content = new ByteArrayContent(buffer))
-                                {
-                                    content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-                                    content.Headers.Add("Content-Range", $"bytes {offset}-{offset + bytesToRead - 1}/{totalSize}");
-
-                                    HttpResponseMessage response = await client.PostAsync($"{serverUrl}/upload/{fileName}", content);
-                                    response.EnsureSuccessStatusCode();
-                                    success = true;
-                                    
-                                    double progressPercent = (double)(offset + bytesToRead) / totalSize * 100;
-                                    string progressMsg = $"Upload progress: Chunk {chunkCount}/{totalChunks} completed ({progressPercent:F1}%)";
-                                    _eventLog?.WriteEntry(progressMsg);
-                                    SendLogToServerAsync(progressMsg);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                lastError = ex;
-                                retries--;
-                                if (retries > 0)
-                                {
-                                    string retryMsg = $"Chunk {chunkCount} failed, retrying... ({ex.Message})";
-                                    _eventLog?.WriteEntry(retryMsg);
-                                    SendLogToServerAsync(retryMsg, "WARNING");
-                                }
-                            }
-                        }
-
-                        if (!success)
-                        {
-                            string failMsg = $"Failed to upload chunk {chunkCount} after 3 attempts: {lastError?.Message}";
-                            _eventLog?.WriteEntry(failMsg);
-                            SendLogToServerAsync(failMsg, "ERROR");
-                            throw new Exception(failMsg, lastError);
-                        }
-
-                        offset += bytesToRead;
-                    }
+                    fileBytes = new byte[fi.Length];
+                    await fs.ReadAsync(fileBytes, 0, (int)fi.Length);
                 }
+                using (var content = new ByteArrayContent(fileBytes))
+                {
+                    content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+                    HttpResponseMessage response = await client.PostAsync($"{serverUrl}/upload/{fileName}", content);
+                    response.EnsureSuccessStatusCode();
 
-                string completeMsg = $"Upload completed successfully: {fileName} ({totalSize:N0} bytes)";
-                _eventLog?.WriteEntry(completeMsg);
-                SendLogToServerAsync(completeMsg);
+                    string completeMsg = $"Upload completed successfully: {fileName} ({totalSize:N0} bytes)";
+                    _eventLog?.WriteEntry(completeMsg);
+                    SendLogToServerAsync(completeMsg);
+                }
                 File.Delete(localPath);
             }
             catch (Exception ex)
@@ -191,7 +142,6 @@ namespace XbozPcAppFT
         private static extern bool SetServiceStatus(System.IntPtr handle, ref ServiceStatus serviceStatus);
 
         private EventLog _eventLog1;
-        private int eventId = 1;
 
         private void WriteEntryAndSendToServer(string message, EventLogEntryType entryType = EventLogEntryType.Information)
         {
