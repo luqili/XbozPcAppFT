@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Latest Screenshot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- Mobile responsive -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 10px;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        h1 {
+            color: #107C10;
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            background: #107C10;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background: #0E7A0E;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn.secondary {
+            background: #6c757d;
+        }
+        
+        .btn.secondary:hover {
+            background: #5a6268;
+        }
+        
+        .status {
+            margin: 10px 0;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        img {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            margin-top: 20px;
+        }
+        
+        #meta {
+            margin: 15px 0;
+            font-size: 1.1rem;
+            color: #444;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #107C10;
+        }
+        
+        .navigation {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+        
+        .navigation a {
+            color: #107C10;
+            text-decoration: none;
+            padding: 8px 16px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .navigation a:hover {
+            background: #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="navigation">
+            <a href="/debug">🛠️ Debug Logs</a>
+        </div>
+        
+        <h1>📸 Xbox Screenshot Monitor</h1>
+        
+        <div class="controls">
+            <button class="btn" onclick="triggerScreenshot()" id="triggerBtn">
+                📸 Take Screenshot Now
+            </button>
+            <button class="btn secondary" onclick="refresh()">
+                🔄 Refresh
+            </button>
+        </div>
+        
+        <div id="status" style="display: none;"></div>
+
+        {% if not has_latest %}
+            <div id="meta">No screenshots found yet. Click "Take Screenshot Now" to capture one!</div>
+        {% else %}
+            <div id="meta">Last Modified (Eastern): {{ mtime_str }}</div>
+            <img id="screenshot" src="/files/image/latest_image.png?t={{ mtime_str }}" alt="latest screenshot">
+        {% endif %}
+    </div>
+
+    <script>
+        async function refresh() {
+            try {
+                const res = await fetch("/latest_meta");
+                const data = await res.json();
+                if (!data.exists) {
+                    document.getElementById("meta").innerText = "No screenshots found yet. Click 'Take Screenshot Now' to capture one!";
+                    const img = document.getElementById("screenshot");
+                    if (img) img.style.display = 'none';
+                    return;
+                }
+                
+                let img = document.getElementById("screenshot");
+                if (!img) {
+                    img = document.createElement('img');
+                    img.id = 'screenshot';
+                    img.alt = 'latest screenshot';
+                    document.querySelector('.container').appendChild(img);
+                }
+                img.src = data.url;
+                img.style.display = 'block';
+                document.getElementById("meta").innerText = "Last Modified (Eastern): " + data.mtime_str;
+            } catch (e) {
+                console.error("Refresh failed:", e);
+                showStatus("Failed to refresh: " + e.message, "error");
+            }
+        }
+        
+        async function triggerScreenshot() {
+            const btn = document.getElementById("triggerBtn");
+            const originalText = btn.textContent;
+            
+            try {
+                btn.disabled = true;
+                btn.textContent = "📸 Triggering...";
+                
+                const response = await fetch("/trigger/screenshot", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus("✅ " + data.message, "success");
+                    
+                    // Wait a bit then refresh to show new screenshot
+                    setTimeout(() => {
+                        refresh();
+                    }, 3000);
+                } else {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+            } catch (e) {
+                console.error("Trigger failed:", e);
+                showStatus("❌ Failed to trigger screenshot: " + e.message, "error");
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById("status");
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = "inline-block";
+            
+            // Hide status after 5 seconds
+            setTimeout(() => {
+                status.style.display = "none";
+            }, 5000);
+        }
+        
+        // Auto refresh every 5 seconds
+        setInterval(refresh, 5000);
+    </script>
+</body>
+</html>

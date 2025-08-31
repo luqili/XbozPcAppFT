@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xbox Service - Debug Logs</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #107C10, #0E7A0E);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+        }
+        
+        .controls {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .controls button {
+            background: #107C10;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+        
+        .controls button:hover {
+            background: #0E7A0E;
+        }
+        
+        .controls button.clear {
+            background: #d13438;
+        }
+        
+        .controls button.clear:hover {
+            background: #b71c1c;
+        }
+        
+        .controls label {
+            margin-left: 15px;
+            margin-right: 5px;
+        }
+        
+        .controls select {
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        
+        .log-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-entry.info {
+            background-color: #f8f9fa;
+            border-left: 3px solid #107C10;
+        }
+        
+        .log-entry.error {
+            background-color: #fff5f5;
+            border-left: 3px solid #d13438;
+        }
+        
+        .log-entry.warning {
+            background-color: #fffbf0;
+            border-left: 3px solid #ff8c00;
+        }
+        
+        .log-timestamp {
+            color: #666;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .log-level {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-right: 10px;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        .log-level.info {
+            background-color: #107C10;
+            color: white;
+        }
+        
+        .log-level.error {
+            background-color: #d13438;
+            color: white;
+        }
+        
+        .log-level.warning {
+            background-color: #ff8c00;
+            color: white;
+        }
+        
+        .log-source {
+            color: #666;
+            font-style: italic;
+            margin-right: 10px;
+        }
+        
+        .log-message {
+            color: #333;
+        }
+        
+        .no-logs {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .navigation {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .navigation a {
+            color: #107C10;
+            text-decoration: none;
+            padding: 8px 16px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .navigation a:hover {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="navigation">
+        <a href="/">← Back to Screenshots</a>
+    </div>
+    
+    <div class="header">
+        <h1>🛠️ Xbox Service Debug Logs</h1>
+        <p>Real-time client service logs and diagnostics</p>
+        <span id="connectionStatus" class="status disconnected">Connecting...</span>
+    </div>
+    
+    <div class="controls">
+        <button onclick="refreshLogs()">🔄 Refresh</button>
+        <button onclick="clearLogs()" class="clear">🗑️ Clear</button>
+        <button onclick="toggleAutoRefresh()" id="autoRefreshBtn">▶️ Auto Refresh</button>
+        
+        <label for="levelFilter">Filter Level:</label>
+        <select id="levelFilter" onchange="filterLogs()">
+            <option value="all">All Levels</option>
+            <option value="INFO">Info</option>
+            <option value="ERROR">Error</option>
+            <option value="WARNING">Warning</option>
+        </select>
+        
+        <label for="sourceFilter">Source:</label>
+        <select id="sourceFilter" onchange="filterLogs()">
+            <option value="all">All Sources</option>
+            <option value="XboxLiveApiSvc">Xbox Service</option>
+        </select>
+    </div>
+    
+    <div class="log-container" id="logContainer">
+        <div class="no-logs">Loading logs...</div>
+    </div>
+
+    <script>
+        let autoRefresh = false;
+        let autoRefreshInterval = null;
+        let allLogs = [];
+
+        function refreshLogs() {
+            document.getElementById('connectionStatus').textContent = 'Fetching...';
+            document.getElementById('connectionStatus').className = 'status disconnected';
+            
+            fetch('/debug/logs')
+                .then(response => response.json())
+                .then(data => {
+                    allLogs = data.logs || [];
+                    displayLogs(allLogs);
+                    document.getElementById('connectionStatus').textContent = 'Connected';
+                    document.getElementById('connectionStatus').className = 'status connected';
+                })
+                .catch(error => {
+                    console.error('Error fetching logs:', error);
+                    document.getElementById('connectionStatus').textContent = 'Connection Error';
+                    document.getElementById('connectionStatus').className = 'status disconnected';
+                });
+        }
+
+        function displayLogs(logs) {
+            const container = document.getElementById('logContainer');
+            
+            if (logs.length === 0) {
+                container.innerHTML = '<div class="no-logs">No logs available</div>';
+                return;
+            }
+
+            let html = '';
+            logs.forEach(log => {
+                const levelClass = log.level.toLowerCase();
+                html += `
+                    <div class="log-entry ${levelClass}" data-level="${log.level}" data-source="${log.source}">
+                        <span class="log-timestamp">${log.timestamp}</span>
+                        <span class="log-level ${levelClass}">${log.level}</span>
+                        <span class="log-source">[${log.source}]</span>
+                        <span class="log-message">${escapeHtml(log.message)}</span>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            container.scrollTop = container.scrollHeight; // Scroll to bottom
+        }
+
+        function filterLogs() {
+            const levelFilter = document.getElementById('levelFilter').value;
+            const sourceFilter = document.getElementById('sourceFilter').value;
+            
+            let filteredLogs = allLogs;
+            
+            if (levelFilter !== 'all') {
+                filteredLogs = filteredLogs.filter(log => log.level === levelFilter);
+            }
+            
+            if (sourceFilter !== 'all') {
+                filteredLogs = filteredLogs.filter(log => log.source === sourceFilter);
+            }
+            
+            displayLogs(filteredLogs);
+        }
+
+        function clearLogs() {
+            if (confirm('Are you sure you want to clear all logs on the server?')) {
+                // This would require a server endpoint to clear logs
+                // For now, just refresh
+                refreshLogs();
+            }
+        }
+
+        function toggleAutoRefresh() {
+            const btn = document.getElementById('autoRefreshBtn');
+            
+            if (autoRefresh) {
+                autoRefresh = false;
+                clearInterval(autoRefreshInterval);
+                btn.textContent = '▶️ Auto Refresh';
+                btn.style.backgroundColor = '#107C10';
+            } else {
+                autoRefresh = true;
+                autoRefreshInterval = setInterval(refreshLogs, 3000); // Refresh every 3 seconds
+                btn.textContent = '⏸️ Stop Auto';
+                btn.style.backgroundColor = '#ff8c00';
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initial load
+        refreshLogs();
+        
+        // Auto-refresh every 10 seconds initially
+        setInterval(() => {
+            if (!autoRefresh) {
+                refreshLogs();
+            }
+        }, 10000);
+    </script>
+</body>
+</html>
